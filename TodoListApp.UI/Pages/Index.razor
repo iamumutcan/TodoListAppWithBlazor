@@ -1,0 +1,168 @@
+﻿@page "/"
+@page "/{Id:int}"
+
+@using TodoListApp.Bussiness.Repository.IRespository
+@using TodoListApp.DataAccess
+@inject IStatusRepository _statusRepository
+@inject ITaskRepository _taskRepository
+@inject NavigationManager _navigationManager
+
+<PageTitle>Todo List</PageTitle>
+<div class="container text-center">
+    <h2 class="text-center mb-4">ToDo List App</h2>
+    <div class="mb-3">
+        @if (!actionupdate)
+        {
+
+
+            <!-- Yeni görev girişi -->
+            <div class="input-group">
+                <label for="Item" class="form-label col-2">Yeni Görev:</label>
+                <input type="text" @bind="modeltodoTask.Text" placeholder="Yeni görev yazın" class="form-control col-10" id="Item" />
+            </div>
+
+            <!-- Görev durumu seçimi -->
+            <div class="input-group mt-3">
+                <label for="Status" class="form-label col-2">Görev Durumu:</label>
+                <select @bind="modeltodoTask.StatusId" class="form-select col-10" id="Status">
+                    @foreach (var sts in StatusesList)
+                    {
+                        <option value="@sts.Id">@sts.Name</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Güncelleme butonu -->
+            <button class="btn btn-primary mt-3" onclick="@(() => AddTask(modeltodoTask))">Ekle</button>
+
+
+
+        }
+        else
+        {
+            <div class="input-group">
+                <label for="Item" class="form-label col-2">Yeni Görev:</label>
+                <input type="text" @bind="modeltodoTask.Text" placeholder=" görev yazın" class="form-control col-10" id="Item" />
+            </div>
+            <button class="btn btn-primary" onclick="@(() => UpdateTask(modeltodoTask))">Güncelle</button> <br />
+            <button class="btn btn-info" onclick="@(() => ItemsChanged())">Yeni Görev Oluşturma Ekranına Dön</button>
+        }
+    </div>
+</div>
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        @foreach (var Status in StatusesList)
+        {
+
+            var otherStatuses = GetByIdExcludingAsync(Status.Id);
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-@Status.btnclass text-white">
+                        <h3 class="card-title">@Status.Name</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group" id="todo-list">
+
+                            @foreach (var task in Status.TodoTasks)
+                            {
+                                <li class="list-group-item">
+                                    @task.Text <br />
+                                    <button class="btn btn-info" onclick="@(() => UpdateAction(task))"><ion-icon name="create-outline"></ion-icon></button>
+                                    <button class="btn btn-danger" onclick="@(() => DeleteTask(task))"><ion-icon name="trash-outline"></ion-icon></button>
+                                    @foreach (var sts in otherStatuses)
+                                    {
+                                        <button class="btn btn-@sts.btnclass" onclick="@(() => UpdateTask(task,sts.Id))"><ion-icon name="create-outline"></ion-icon> @sts.Name</button>
+                                    }
+                                </li>
+                            }
+
+                        </ul>
+                    </div>
+
+
+                </div>
+            </div>
+
+        }
+    </div>
+</div>
+
+
+
+
+
+
+
+@code {
+    private IEnumerable<TodoStatus> Statuses { get; set; } = new List<TodoStatus>(); // veritabanından gelen TodoStatus değerlerini tutmak için
+    private IEnumerable<TodoTask> Tasks { get; set; } = new List<TodoTask>(); // veritabanından gelen TodoTask değerlerini tutmak için
+    private IEnumerable<TodoStatus> OtherStatuses { get; set; } = new List<TodoStatus>(); // kendisi hariç diğer durumlar için bunu taşıma işleminde kullanıyorum
+    private TodoTask modeltodoTask { get; set; } = new TodoTask(); // yeni task ve düzenleme için
+    private List<TodoStatus> StatusesList { get; set; } = new List<TodoStatus>(); // bir hata aldım yeni ekleme veya silme işlemlerinden sonra veri tabanına erişim sıkıntısı oluyordu bu yüzden bunları oluşturdum
+    private List<TodoStatus> OtherStatusesList { get; set; } = new List<TodoStatus>(); // aynı sebep
+    private bool actionupdate = false;
+    [Parameter]
+    public int Id { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        modeltodoTask ??= new();
+
+        if (Id != 0)
+        {
+            actionupdate = true;
+            modeltodoTask = await _taskRepository.GetById(Id);
+        }
+
+        Statuses = await _statusRepository.GetAllWithTasks();
+        OtherStatuses = await _statusRepository.GetAll();
+        StatusesList = Statuses.ToList();
+        OtherStatusesList = OtherStatuses.ToList();
+    }
+
+    public List<TodoStatus> GetByIdExcludingAsync(int id)
+    {
+        return OtherStatusesList.Where(x => x.Id != id).ToList();
+    }
+
+    public async Task ItemsChanged()
+    {
+        _navigationManager.NavigateTo("/", true);
+
+    }
+
+
+    public async Task AddTask(TodoTask todoTask)
+    {
+        await _taskRepository.Create(todoTask);
+        ItemsChanged();
+
+    }
+    public async Task UpdateTask(TodoTask todoTask)
+    {
+
+        await _taskRepository.Update(todoTask);
+        actionupdate = false;
+        ItemsChanged();
+    }
+    public async Task UpdateTask(TodoTask todoTask, int id)
+    {
+        todoTask.StatusId = id;
+        await _taskRepository.Update(todoTask);
+        actionupdate = false;
+        ItemsChanged();
+    }
+    public void UpdateAction(TodoTask todoTask)
+    {
+        string link = "/" + todoTask.Id;
+        _navigationManager.NavigateTo(link, true);
+
+    }
+    public async Task DeleteTask(TodoTask todoTask)
+    {
+        todoTask.IsDeleted = true;
+        await _taskRepository.Update(todoTask);
+        ItemsChanged();
+    }
+
+}

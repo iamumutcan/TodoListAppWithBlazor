@@ -1,0 +1,29 @@
+﻿@inherits LayoutComponentBase
+
+<PageTitle>TodoListApp.UI</PageTitle>
+<style>
+    body {
+        background-color: #f8f9fa;
+    }
+
+    .card-body {
+        background-color: #E5E1DA;
+    }
+
+        .card-body ul li {
+            background-color: #AAD7D9;
+            border-radius: 8px;
+            margin-bottom: 5px;
+        }
+</style>
+
+<div class="page">
+    <main>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
